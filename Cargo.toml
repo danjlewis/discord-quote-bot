@@ -1,5 +1,5 @@
 [package]
-name = "serenity_template"
+name = "discord_quote_bot"
 version = "0.1.0"
 edition = "2021"
 

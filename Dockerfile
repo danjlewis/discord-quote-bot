@@ -1,8 +1,8 @@
 FROM rust:latest AS builder
-WORKDIR /usr/src/serenity_template
+WORKDIR /usr/src/discord_quote_bot
 COPY . .
 RUN cargo install --path .
 
 FROM debian:bullseye-slim
-COPY --from=builder /usr/local/cargo/bin/serenity_template /usr/local/bin/serenity_template
-CMD ["serenity_template"]
+COPY --from=builder /usr/local/cargo/bin/discord_quote_bot /usr/local/bin/discord_quote_bot
+CMD ["discord_quote_bot"]
