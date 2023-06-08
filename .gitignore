@@ -1,0 +1,8 @@
+# Source: https://github.com/github/gitignore
+debug/
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+*.env
