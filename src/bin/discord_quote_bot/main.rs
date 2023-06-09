@@ -23,7 +23,7 @@ async fn client() -> Result<Client> {
         .event_handler(handler::Handler)
         .framework(commands::framework())
         .await
-        .expect("client should build successfully");
+        .expect("discord client should build successfully");
 
     Ok(client)
 }
