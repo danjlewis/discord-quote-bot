@@ -65,13 +65,15 @@ impl UnsplashClient {
             .json()
             .await?;
 
-        let url = metadata
+        let raw_url = metadata
             .get("urls")
             .ok_or(anyhow!("Metadata missing `urls` key"))?
-            .get("regular")
-            .ok_or(anyhow!("Metadata missing `urls.regular` key"))?
+            .get("raw")
+            .ok_or(anyhow!("Metadata missing `urls.raw` key"))?
             .as_str()
-            .ok_or(anyhow!("Invalid data type of `urls.regular` metadata key"))?;
+            .ok_or(anyhow!("Invalid data type of `urls.raw` metadata key"))?;
+
+        let url = format!("{raw_url}?w=1000&h=1000&ar=1:1&fit=crop");
 
         let image_data = self
             .reqwest_client

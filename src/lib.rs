@@ -37,18 +37,6 @@ impl QuoteRenderer {
         };
         let img = self.unsplash_client.get_random_photo(api_options).await?;
 
-        let img = Self::crop_background_image(&img);
-
         Ok(img)
-    }
-
-    fn crop_background_image(img: &DynamicImage) -> DynamicImage {
-        let original_size = img.dimensions();
-        let side_length = cmp::min(original_size.0, original_size.1);
-
-        let x = (original_size.0 - side_length) / 2;
-        let y = (original_size.1 - side_length) / 2;
-
-        img.crop_imm(x, y, side_length, side_length)
     }
 }
