@@ -31,6 +31,8 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 async fn test(ctx: &Context, msg: &Message) -> CommandResult {
     instrument_command!("test", msg, {
+        let _typing = msg.channel_id.start_typing(&ctx.http)?;
+
         let unsplash_access_key = env::var("UNSPLASH_KEY")
             .context("Failed to load `UNSPLASH_KEY` environment variable")?;
 
@@ -41,12 +43,12 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
             .await?;
 
         let mut image_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        image.write_to(&mut image_bytes, ImageOutputFormat::Png)?;
+        image.write_to(&mut image_bytes, ImageOutputFormat::Jpeg(75))?;
         let image_bytes = image_bytes.into_inner();
 
         msg.channel_id
             .send_message(&ctx.http, |m| {
-                m.add_file((image_bytes.as_slice(), "quote.png"))
+                m.add_file((image_bytes.as_slice(), "quote.jpg"))
             })
             .await?;
 

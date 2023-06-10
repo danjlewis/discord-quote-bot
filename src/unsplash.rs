@@ -1,4 +1,4 @@
-use image::{io::Reader as ImageReader, DynamicImage};
+use image::{io::Reader as ImageReader, RgbImage};
 use serde_json::Value as JsonValue;
 use std::{collections::HashMap, io::Cursor};
 
@@ -50,7 +50,7 @@ impl UnsplashClient {
     }
 
     // TODO: implement proper error handling
-    pub async fn get_random_photo(&self, options: GetRandomPhotoOptions) -> Result<DynamicImage> {
+    pub async fn get_random_photo(&self, options: GetRandomPhotoOptions) -> Result<RgbImage> {
         let metadata: HashMap<String, JsonValue> = self
             .unsplash_reqwest_client
             .get(
@@ -73,7 +73,7 @@ impl UnsplashClient {
             .as_str()
             .ok_or(anyhow!("Invalid data type of `urls.raw` metadata key"))?;
 
-        let url = format!("{raw_url}?w=1000&h=1000&ar=1:1&fit=crop");
+        let url = format!("{raw_url}?fm=jpg&q=75&w=1000&h=1000&ar=1:1&fit=crop");
 
         let image_data = self
             .reqwest_client
@@ -86,7 +86,8 @@ impl UnsplashClient {
 
         let image = ImageReader::new(Cursor::new(image_data))
             .with_guessed_format()?
-            .decode()?;
+            .decode()?
+            .into_rgb8();
 
         Ok(image)
     }
