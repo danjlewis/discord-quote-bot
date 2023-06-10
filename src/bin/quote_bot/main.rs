@@ -16,14 +16,14 @@ pub const EMBED_COLOR: [u8; 3] = [0x58, 0x65, 0xF2];
 
 async fn client() -> Result<Client> {
     let token =
-        env::var("DISCORD_TOKEN").context("Failed to load `DISCORD_TOKEN` environment variable")?;
+        env::var("DISCORD_TOKEN").context("failed to load `DISCORD_TOKEN` environment variable")?;
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
 
     let client = Client::builder(token, intents)
         .event_handler(handler::Handler)
         .framework(commands::framework())
         .await
-        .expect("discord client should build successfully");
+        .expect("Discord client should build successfully");
 
     Ok(client)
 }
@@ -36,8 +36,8 @@ async fn main() -> Result<()> {
         .try_init()
         .expect("logger initialization shouldn't fail");
 
-    let mut client = client().await.context("Failed to build client")?;
-    client.start().await.context("Client error occurred")?;
+    let mut client = client().await.context("failed to build client")?;
+    client.start().await.context("client error occurred")?;
 
     Ok(())
 }

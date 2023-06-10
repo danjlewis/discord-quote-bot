@@ -1,11 +1,12 @@
 use image::{io::Reader as ImageReader, RgbImage};
 use serde_json::Value as JsonValue;
 use std::{collections::HashMap, io::Cursor};
+use tracing::log::trace;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use reqwest::{
     header::{self, HeaderMap, HeaderValue},
-    Client, Url,
+    Client, IntoUrl, Url,
 };
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +50,34 @@ impl UnsplashClient {
             .expect("Unsplash reqwest client should build successfully")
     }
 
+    async fn download_from_raw_url(
+        &self,
+        url: impl IntoUrl,
+        imgix_params: &ImgixParams,
+    ) -> Result<RgbImage> {
+        let image_data = self
+            .reqwest_client
+            .get(url)
+            .query(&imgix_params)
+            .send()
+            .await
+            .context("error occurred while sending request")?
+            .error_for_status()
+            .context("image download request failed")?
+            .bytes()
+            .await
+            .context("invalid image download response format")?;
+
+        let image = ImageReader::new(Cursor::new(image_data))
+            .with_guessed_format()
+            .context("failed to guess image format")?
+            .decode()
+            .context("failed to decode image")?
+            .into_rgb8();
+
+        Ok(image)
+    }
+
     // TODO: implement proper error handling
     pub async fn get_random_photo(&self, options: GetRandomPhotoOptions) -> Result<RgbImage> {
         let metadata: HashMap<String, JsonValue> = self
@@ -60,34 +89,32 @@ impl UnsplashClient {
             )
             .query(&options)
             .send()
-            .await?
-            .error_for_status()?
+            .await
+            .context("error occurred while sending request")?
+            .error_for_status()
+            .context("random photo request failed")?
             .json()
-            .await?;
+            .await
+            .context("invalid random photo response format")?;
+
+        trace!("1a");
 
         let url: Url = metadata
             .get("urls")
-            .ok_or(anyhow!("Metadata missing `urls` key"))?
+            .ok_or(anyhow!("metadata missing `urls` key"))?
             .get("raw")
-            .ok_or(anyhow!("Metadata missing `urls.raw` key"))?
+            .ok_or(anyhow!("metadata missing `urls.raw` key"))?
             .as_str()
-            .ok_or(anyhow!("Invalid data type of `urls.raw` metadata key"))?
-            .parse()?;
+            .ok_or(anyhow!("invalid data type of `urls.raw` metadata key"))?
+            .parse()
+            .context("invalid URL format provided by Unsplash API")?;
 
-        let image_data = self
-            .reqwest_client
-            .get(url)
-            .query(&options.imgix_params)
-            .send()
-            .await?
-            .error_for_status()?
-            .bytes()
-            .await?;
+        trace!("2a");
 
-        let image = ImageReader::new(Cursor::new(image_data))
-            .with_guessed_format()?
-            .decode()?
-            .into_rgb8();
+        let image = self
+            .download_from_raw_url(url, &options.imgix_params)
+            .await
+            .context("failed to download image")?;
 
         Ok(image)
     }
@@ -105,7 +132,10 @@ impl UnsplashClient {
             },
             ..Default::default()
         };
-        let image = self.get_random_photo(api_options).await?;
+        let image = self
+            .get_random_photo(api_options)
+            .await
+            .context("failed to get random background photo")?;
 
         Ok(image)
     }

@@ -1,22 +1,23 @@
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 use image::{DynamicImage, GenericImage, Rgb, RgbImage};
 
 // TODO: implement proper error handling
-pub async fn render(
+pub fn render(
     background_image: &DynamicImage,
     _quote: &str,
     _author: &str,
     _timestamp: DateTime<Utc>,
-) -> Result<RgbImage> {
+) -> RgbImage {
     let background_image = background_image.to_rgb8();
 
     let average_color = calculate_average_color(&background_image);
 
     let mut image = background_image;
-    image.copy_from(&RgbImage::from_pixel(100, 100, average_color), 0, 0)?;
+    image
+        .copy_from(&RgbImage::from_pixel(100, 100, average_color), 0, 0)
+        .unwrap();
 
-    Ok(image)
+    image
 }
 
 fn calculate_average_color(image: &RgbImage) -> Rgb<u8> {
