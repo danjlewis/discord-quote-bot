@@ -3,7 +3,10 @@ use std::{env, io::Cursor};
 use anyhow::Context as _;
 use chrono::Utc;
 use image::ImageOutputFormat;
-use quote_bot::{renderer, unsplash::UnsplashClient};
+use quote_bot::{
+    renderer,
+    unsplash::{GetRandomPhotoOptions, ImgixFitMode, ImgixFormat, ImgixParams, UnsplashClient},
+};
 use serenity::{
     framework::standard::{
         macros::{command, group},
@@ -39,9 +42,21 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
             .context("failed to load `UNSPLASH_KEY` environment variable")?;
         let unsplash_client = UnsplashClient::new(&unsplash_access_key);
 
-        let background_image = unsplash_client.generate_background_image().await;
-
-        let background_image = background_image?;
+        let background_image = unsplash_client
+            .get_random_photo(GetRandomPhotoOptions {
+                collections: Some(String::from("11649432")),
+                imgix_params: ImgixParams {
+                    height: Some(1080),
+                    format: Some(ImgixFormat::Jpg),
+                    quality: Some(45),
+                    fit_mode: Some(ImgixFitMode::Crop),
+                    aspect_ratio: Some(String::from("3:2")),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .await
+            .context("failed to get random background image")?;
 
         let image = renderer::render(
             &background_image.into(),

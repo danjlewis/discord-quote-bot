@@ -113,27 +113,6 @@ impl UnsplashClient {
 
         Ok(image)
     }
-
-    pub async fn generate_background_image(&self) -> Result<RgbImage> {
-        let api_options = GetRandomPhotoOptions {
-            collections: Some(String::from("11649432")),
-            imgix_params: ImgixParams {
-                height: Some(1080),
-                format: Some(ImgixFormat::Jpg),
-                quality: Some(45),
-                fit_mode: Some(ImgixFitMode::Crop),
-                aspect_ratio: Some(String::from("3:2")),
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-        let image = self
-            .get_random_photo(api_options)
-            .await
-            .context("failed to get random background photo")?;
-
-        Ok(image)
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
