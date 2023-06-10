@@ -3,11 +3,11 @@ use std::{env, io::Cursor};
 use anyhow::Context as _;
 use chrono::Utc;
 use image::ImageOutputFormat;
-use quote_bot::QuoteRenderer;
+use quote_bot::{renderer, unsplash::UnsplashClient};
 use serenity::{
     framework::standard::{
         macros::{command, group},
-        Args, CommandResult,
+        CommandResult,
     },
     model::prelude::Message,
     prelude::*,
@@ -35,12 +35,17 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
 
         let unsplash_access_key = env::var("UNSPLASH_KEY")
             .context("Failed to load `UNSPLASH_KEY` environment variable")?;
+        let unsplash_client = UnsplashClient::new(&unsplash_access_key);
 
-        let renderer = QuoteRenderer::new(&unsplash_access_key);
+        let background_image = unsplash_client.generate_background_image().await?;
 
-        let image = renderer
-            .render("test quote", "test author", Utc::now())
-            .await?;
+        let image = renderer::render(
+            &background_image.into(),
+            "test quote",
+            "test author",
+            Utc::now(),
+        )
+        .await?;
 
         let mut image_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         image.write_to(&mut image_bytes, ImageOutputFormat::Jpeg(75))?;

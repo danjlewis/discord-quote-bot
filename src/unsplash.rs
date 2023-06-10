@@ -65,19 +65,19 @@ impl UnsplashClient {
             .json()
             .await?;
 
-        let raw_url = metadata
+        let url: Url = metadata
             .get("urls")
             .ok_or(anyhow!("Metadata missing `urls` key"))?
             .get("raw")
             .ok_or(anyhow!("Metadata missing `urls.raw` key"))?
             .as_str()
-            .ok_or(anyhow!("Invalid data type of `urls.raw` metadata key"))?;
-
-        let url = format!("{raw_url}?fm=jpg&q=75&w=1000&h=1000&ar=1:1&fit=crop");
+            .ok_or(anyhow!("Invalid data type of `urls.raw` metadata key"))?
+            .parse()?;
 
         let image_data = self
             .reqwest_client
             .get(url)
+            .query(&options.imgix_params)
             .send()
             .await?
             .error_for_status()?
@@ -88,6 +88,24 @@ impl UnsplashClient {
             .with_guessed_format()?
             .decode()?
             .into_rgb8();
+
+        Ok(image)
+    }
+
+    pub async fn generate_background_image(&self) -> Result<RgbImage> {
+        let api_options = GetRandomPhotoOptions {
+            collections: Some(String::from("11649432")),
+            imgix_params: ImgixParams {
+                width: Some(1000),
+                height: Some(1000),
+                format: Some(ImgixFormat::Jpg),
+                quality: Some(45),
+                fit_mode: Some(ImgixFitMode::Crop),
+                aspect_ratio: Some([1, 1]),
+            },
+            ..Default::default()
+        };
+        let image = self.get_random_photo(api_options).await?;
 
         Ok(image)
     }
@@ -102,9 +120,50 @@ pub enum Orientation {
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+pub struct ImgixParams {
+    #[serde(rename = "fm")]
+    pub format: Option<ImgixFormat>,
+    #[serde(rename = "w")]
+    pub width: Option<u32>,
+    #[serde(rename = "h")]
+    pub height: Option<u32>,
+    #[serde(rename = "q")]
+    pub quality: Option<u32>,
+    #[serde(rename = "fit")]
+    pub fit_mode: Option<ImgixFitMode>,
+    #[serde(rename = "ar")]
+    pub aspect_ratio: Option<[u32; 2]>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ImgixFormat {
+    Png,
+    Jpg,
+    Json,
+    WebP,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]
+#[serde(rename_all = "lowercase")]
+pub enum ImgixFitMode {
+    Clamp,
+    Clip,
+    Crop,
+    FaceArea,
+    Fill,
+    FillMax,
+    Max,
+    Min,
+    Scale,
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct GetRandomPhotoOptions {
     pub collections: Option<String>,
     pub topics: Option<String>,
     pub username: Option<String>,
     pub orientation: Option<Orientation>,
+    #[serde(skip)]
+    pub imgix_params: ImgixParams,
 }
