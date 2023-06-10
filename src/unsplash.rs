@@ -1,7 +1,6 @@
 use image::{io::Reader as ImageReader, RgbImage};
 use serde_json::Value as JsonValue;
 use std::{collections::HashMap, io::Cursor};
-use tracing::log::trace;
 
 use anyhow::{anyhow, Context, Result};
 use reqwest::{
@@ -119,12 +118,12 @@ impl UnsplashClient {
         let api_options = GetRandomPhotoOptions {
             collections: Some(String::from("11649432")),
             imgix_params: ImgixParams {
-                width: Some(1000),
-                height: Some(1000),
+                height: Some(1080),
                 format: Some(ImgixFormat::Jpg),
                 quality: Some(45),
                 fit_mode: Some(ImgixFitMode::Crop),
-                aspect_ratio: Some(String::from("1:1")),
+                aspect_ratio: Some(String::from("3:2")),
+                ..Default::default()
             },
             ..Default::default()
         };

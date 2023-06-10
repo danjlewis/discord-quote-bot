@@ -41,10 +41,6 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
 
         let background_image = unsplash_client.generate_background_image().await;
 
-        if let Err(e) = &background_image {
-            error!("{:?}", e);
-        }
-
         let background_image = background_image?;
 
         let image = renderer::render(
