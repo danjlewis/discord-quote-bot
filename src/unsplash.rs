@@ -97,8 +97,6 @@ impl UnsplashClient {
             .await
             .context("invalid random photo response format")?;
 
-        trace!("1a");
-
         let url: Url = metadata
             .get("urls")
             .ok_or(anyhow!("metadata missing `urls` key"))?
@@ -108,8 +106,6 @@ impl UnsplashClient {
             .ok_or(anyhow!("invalid data type of `urls.raw` metadata key"))?
             .parse()
             .context("invalid URL format provided by Unsplash API")?;
-
-        trace!("2a");
 
         let image = self
             .download_from_raw_url(url, &options.imgix_params)
@@ -128,7 +124,7 @@ impl UnsplashClient {
                 format: Some(ImgixFormat::Jpg),
                 quality: Some(45),
                 fit_mode: Some(ImgixFitMode::Crop),
-                aspect_ratio: Some([1, 1]),
+                aspect_ratio: Some(String::from("1:1")),
             },
             ..Default::default()
         };
@@ -162,7 +158,7 @@ pub struct ImgixParams {
     #[serde(rename = "fit")]
     pub fit_mode: Option<ImgixFitMode>,
     #[serde(rename = "ar")]
-    pub aspect_ratio: Option<[u32; 2]>,
+    pub aspect_ratio: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Hash)]

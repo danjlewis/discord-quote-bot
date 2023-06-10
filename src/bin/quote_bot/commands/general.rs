@@ -22,7 +22,9 @@ struct General;
 #[num_args(0)]
 async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
     instrument_command!("ping", msg, {
-        msg.reply(ctx, "Pong!").await?;
+        msg.reply(ctx, "Pong!")
+            .await
+            .context("failed to send response message")?;
 
         Ok(())
     })
@@ -45,8 +47,6 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
 
         let background_image = background_image?;
 
-        trace!("1");
-
         let image = renderer::render(
             &background_image.into(),
             "test quote",
@@ -54,17 +54,18 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
             Utc::now(),
         );
 
-        trace!("2");
-
         let mut image_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        image.write_to(&mut image_bytes, ImageOutputFormat::Jpeg(75))?;
+        image
+            .write_to(&mut image_bytes, ImageOutputFormat::Jpeg(75))
+            .context("failed to encode quote image")?;
         let image_bytes = image_bytes.into_inner();
 
         msg.channel_id
             .send_message(&ctx.http, |m| {
                 m.add_file((image_bytes.as_slice(), "quote.jpg"))
             })
-            .await?;
+            .await
+            .context("failed to send quote image")?;
 
         Ok(())
     })
