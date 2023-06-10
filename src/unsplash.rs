@@ -98,7 +98,7 @@ pub enum Orientation {
     Squarish,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
 pub struct GetRandomPhotoOptions {
     pub collections: Option<String>,
     pub topics: Option<String>,

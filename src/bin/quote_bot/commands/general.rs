@@ -1,3 +1,9 @@
+use std::{env, io::Cursor};
+
+use anyhow::Context as _;
+use chrono::Utc;
+use image::ImageOutputFormat;
+use quote_bot::QuoteRenderer;
 use serenity::{
     framework::standard::{
         macros::{command, group},
@@ -8,7 +14,7 @@ use serenity::{
 };
 
 #[group]
-#[commands(ping, echo, greet)]
+#[commands(ping, test)]
 struct General;
 
 #[command]
@@ -23,34 +29,60 @@ async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
 }
 
 #[command]
-#[description("Echoes your message back to you.")]
-#[usage("<message>")]
-async fn echo(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    instrument_command!("echo", msg, {
-        args.trimmed().quoted();
+async fn test(ctx: &Context, msg: &Message) -> CommandResult {
+    instrument_command!("test", msg, {
+        let unsplash_access_key = env::var("UNSPLASH_KEY")
+            .context("Failed to load `UNSPLASH_KEY` environment variable")?;
 
-        let reply_content = args.remains().unwrap_or("*(silence)*");
+        let renderer = QuoteRenderer::new(&unsplash_access_key);
 
-        msg.reply(ctx, reply_content).await?;
+        let image = renderer
+            .render("test quote", "test author", Utc::now())
+            .await?;
 
-        Ok(())
-    })
-}
+        let mut image_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        image.write_to(&mut image_bytes, ImageOutputFormat::Png)?;
+        let image_bytes = image_bytes.into_inner();
 
-#[command]
-#[description("Says hello!")]
-#[usage("[name='world']")]
-#[example("Wumpus")]
-#[max_args(1)]
-async fn greet(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    instrument_command!("greet", msg, {
-        args.trimmed().quoted();
-
-        let name = args.single::<String>().unwrap_or(String::from("world"));
-        let reply_content = format!("Hello {name}!");
-
-        msg.reply(ctx, reply_content).await?;
+        msg.channel_id
+            .send_message(&ctx.http, |m| {
+                m.add_file((image_bytes.as_slice(), "quote.png"))
+            })
+            .await?;
 
         Ok(())
     })
 }
+
+// #[command]
+// #[description("Echoes your message back to you.")]
+// #[usage("<message>")]
+// async fn echo(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+//     instrument_command!("echo", msg, {
+//         args.trimmed().quoted();
+
+//         let reply_content = args.remains().unwrap_or("*(silence)*");
+
+//         msg.reply(ctx, reply_content).await?;
+
+//         Ok(())
+//     })
+// }
+
+// #[command]
+// #[description("Says hello!")]
+// #[usage("[name='world']")]
+// #[example("Wumpus")]
+// #[max_args(1)]
+// async fn greet(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+//     instrument_command!("greet", msg, {
+//         args.trimmed().quoted();
+
+//         let name = args.single::<String>().unwrap_or(String::from("world"));
+//         let reply_content = format!("Hello {name}!");
+
+//         msg.reply(ctx, reply_content).await?;
+
+//         Ok(())
+//     })
+// }
