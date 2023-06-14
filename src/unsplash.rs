@@ -1,13 +1,13 @@
-use image::{io::Reader as ImageReader, RgbImage};
-use serde_json::Value as JsonValue;
 use std::{collections::HashMap, io::Cursor};
 
 use anyhow::{anyhow, Context, Result};
+use image::{io::Reader as ImageReader, RgbImage};
 use reqwest::{
     header::{self, HeaderMap, HeaderValue},
     Client, IntoUrl, Url,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
 
 pub struct UnsplashClient {
     reqwest_client: Client,
@@ -40,7 +40,7 @@ impl UnsplashClient {
             header::AUTHORIZATION,
             format!("Client-ID {access_key}")
                 .try_into()
-                .expect("access_key should not contain invalid header characters"),
+                .expect("Unsplash access key should not contain invalid HTTP header characters"),
         );
 
         Client::builder()

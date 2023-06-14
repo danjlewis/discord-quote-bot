@@ -1,3 +1,5 @@
+.DS_Store
+
 # Source: https://github.com/github/gitignore
 debug/
 target/

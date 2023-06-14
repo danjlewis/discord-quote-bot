@@ -1,18 +1,17 @@
 use chrono::{DateTime, Utc};
-use image::{DynamicImage, GenericImage, Rgb, RgbImage};
+use image::{GenericImage, Rgb, RgbImage};
 
 // TODO: implement proper error handling
 pub fn render(
-    background_image: &DynamicImage,
+    background_image: &RgbImage,
     _quote: &str,
     _author: &str,
     _timestamp: DateTime<Utc>,
 ) -> RgbImage {
-    let background_image = background_image.to_rgb8();
+    let mut image = background_image.clone();
 
-    let average_color = calculate_average_color(&background_image);
+    let average_color = calculate_average_color(background_image);
 
-    let mut image = background_image;
     image
         .copy_from(&RgbImage::from_pixel(100, 100, average_color), 0, 0)
         .unwrap();

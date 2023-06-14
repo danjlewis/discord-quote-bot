@@ -4,8 +4,10 @@ use anyhow::Context as _;
 use chrono::Utc;
 use image::ImageOutputFormat;
 use quote_bot::{
-    renderer,
-    unsplash::{GetRandomPhotoOptions, ImgixFitMode, ImgixFormat, ImgixParams, UnsplashClient},
+    render,
+    unsplash::{
+        GetRandomPhotoOptions, ImgixFitMode, ImgixFormat, ImgixParams, Orientation, UnsplashClient,
+    },
 };
 use serenity::{
     framework::standard::{
@@ -45,6 +47,7 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
         let background_image = unsplash_client
             .get_random_photo(GetRandomPhotoOptions {
                 collections: Some(String::from("11649432")),
+                orientation: Some(Orientation::Landscape),
                 imgix_params: ImgixParams {
                     height: Some(1080),
                     format: Some(ImgixFormat::Jpg),
@@ -58,12 +61,7 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
             .await
             .context("failed to get random background image")?;
 
-        let image = renderer::render(
-            &background_image.into(),
-            "test quote",
-            "test author",
-            Utc::now(),
-        );
+        let image = render::render(&background_image, "test quote", "test author", Utc::now());
 
         let mut image_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         image

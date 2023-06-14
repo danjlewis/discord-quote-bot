@@ -1,2 +1,3 @@
-pub mod renderer;
+pub(crate) mod assets;
+pub mod render;
 pub mod unsplash;
