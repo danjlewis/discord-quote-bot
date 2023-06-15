@@ -13,13 +13,11 @@ pub fn render(
     quote: &str,
     _author: &str,
     _timestamp: DateTime<Utc>,
-) -> RgbImage {
+) -> RgbaImage {
     let mut image: RgbaImage = background_image.clone().convert();
     let dimensions = image.dimensions();
 
     let average_color = calculate_average_color(background_image);
-
-    const TEXT_BOX_OPACITY: f64 = 0.6;
 
     const MARGIN_PERCENT: f64 = 0.2;
     let margin_size = (dimensions.1 as f64 * MARGIN_PERCENT) as u32;
@@ -33,34 +31,62 @@ pub fn render(
     );
     let max_quote_box_position = (margin_size, margin_size);
 
-    let max_quote_text_dimensions = (
-        max_quote_box_dimensions.0 - quote_padding_size * 2,
-        max_quote_box_dimensions.1 - quote_padding_size * 2,
+    let quote_box = render_quote_box(
+        quote,
+        &average_color,
+        max_quote_box_dimensions,
+        quote_padding_size,
+    );
+    imageops::overlay(
+        &mut image,
+        &quote_box,
+        max_quote_box_position.0 as i64,
+        max_quote_box_position.1 as i64,
     );
 
-    let quote_text = render_quote_text(quote, &average_color, max_quote_text_dimensions);
+    image
+}
+
+fn render_quote_box(
+    quote: &str,
+    quote_color: &impl Pixel<Subpixel = u8>,
+    max_dimensions: (u32, u32),
+    padding_size: u32,
+) -> RgbaImage {
+    let max_quote_text_dimensions = (
+        max_dimensions.0 - padding_size * 2,
+        max_dimensions.1 - padding_size * 2,
+    );
+
+    let quote_text = render_quote_text(quote, quote_color, max_quote_text_dimensions);
     let quote_text_dimensions = quote_text.dimensions();
 
     let quote_box_dimensions = (
-        quote_text_dimensions.0 + quote_padding_size * 2,
-        quote_text_dimensions.1 + quote_padding_size * 2,
+        quote_text_dimensions.0 + padding_size * 2,
+        quote_text_dimensions.1 + padding_size * 2,
     );
     // center-aligned within max quote box
     let quote_box_position = (
-        max_quote_box_position.0 + max_quote_box_dimensions.0 / 2 - quote_box_dimensions.0 / 2,
-        max_quote_box_position.1 + max_quote_box_dimensions.1 / 2 - quote_box_dimensions.1 / 2,
+        max_dimensions.0 / 2 - quote_box_dimensions.0 / 2,
+        max_dimensions.1 / 2 - quote_box_dimensions.1 / 2,
     );
 
-    let quote_text_position = (
-        quote_box_position.0 + quote_padding_size,
-        quote_box_position.1 + quote_padding_size,
-    );
+    let quote_text_position = (padding_size, padding_size);
 
-    let quote_box = RgbaImage::from_pixel(
+    const TEXT_BOX_OPACITY: f64 = 0.6;
+    let mut quote_box = RgbaImage::from_pixel(
         quote_box_dimensions.0,
         quote_box_dimensions.1,
         Rgba([255, 255, 255, (255.0 * TEXT_BOX_OPACITY) as u8]),
     );
+    imageops::overlay(
+        &mut quote_box,
+        &quote_text,
+        quote_text_position.0 as i64,
+        quote_text_position.1 as i64,
+    );
+
+    let mut image = RgbaImage::new(max_dimensions.0, max_dimensions.1);
     imageops::overlay(
         &mut image,
         &quote_box,
@@ -68,37 +94,7 @@ pub fn render(
         quote_box_position.1 as i64,
     );
 
-    imageops::overlay(
-        &mut image,
-        &quote_text,
-        quote_text_position.0 as i64,
-        quote_text_position.1 as i64,
-    );
-
-    image.convert()
-}
-
-fn calculate_average_color(image: &RgbImage) -> Rgb<u8> {
-    let pixels = image.pixels();
-
-    let sum = pixels.fold([0; 3], |mut acc, pixel| {
-        for (i, v) in acc.iter_mut().enumerate() {
-            *v += pixel.0[i] as u32;
-        }
-
-        acc
-    });
-
-    let dimensions = image.dimensions();
-    let pixel_count = dimensions.0 * dimensions.1;
-
-    let mut mean = [0u8; 3];
-    for (i, v) in mean.iter_mut().enumerate() {
-        *v = u8::try_from(sum[i] / pixel_count)
-            .expect("mean of u8 values should be within u8 range");
-    }
-
-    Rgb(mean)
+    image
 }
 
 fn render_quote_text(
@@ -148,4 +144,27 @@ fn render_quote_text(
     drawing::draw_text_mut(&mut image, color, 0, 0, scale, &font, &quote);
 
     image
+}
+
+fn calculate_average_color(image: &RgbImage) -> Rgb<u8> {
+    let pixels = image.pixels();
+
+    let sum = pixels.fold([0; 3], |mut acc, pixel| {
+        for (i, v) in acc.iter_mut().enumerate() {
+            *v += pixel.0[i] as u32;
+        }
+
+        acc
+    });
+
+    let dimensions = image.dimensions();
+    let pixel_count = dimensions.0 * dimensions.1;
+
+    let mut mean = [0u8; 3];
+    for (i, v) in mean.iter_mut().enumerate() {
+        *v = u8::try_from(sum[i] / pixel_count)
+            .expect("mean of u8 values should be within u8 range");
+    }
+
+    Rgb(mean)
 }
