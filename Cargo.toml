@@ -10,6 +10,7 @@ anyhow = { version = "1.0.69", features = ["backtrace"] }
 chrono = "0.4.26"
 dotenv = "0.15.0"
 image = "0.24.6"
+imageproc = "0.23.0"
 reqwest = "0.11.18"
 rusttype = "0.9.3"
 serde = { version = "1.0.164", features = ["derive"] }
