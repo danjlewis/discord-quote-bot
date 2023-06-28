@@ -3,7 +3,7 @@ use std::cmp;
 use chrono::{DateTime, Utc};
 use image::{buffer::ConvertBuffer, imageops, Pixel, Rgb, RgbImage, Rgba, RgbaImage};
 use imageproc::drawing;
-use rusttype::Scale;
+use rusttype::{Font, Scale};
 
 use crate::assets::fonts::Lato;
 
@@ -19,11 +19,11 @@ pub fn render(
 
     let average_color = calculate_average_color(background_image);
 
-    const MARGIN_PERCENT: f64 = 0.2;
-    let margin_size = (dimensions.1 as f64 * MARGIN_PERCENT) as u32;
+    const MARGIN_MULTIPLIER: f64 = 0.2;
+    let margin_size = (dimensions.1 as f64 * MARGIN_MULTIPLIER) as u32;
 
-    const QUOTE_PADDING_PERCENT: f64 = 0.05;
-    let quote_padding_size = (dimensions.1 as f64 * QUOTE_PADDING_PERCENT) as u32;
+    const QUOTE_PADDING_MULTIPLIER: f64 = 0.05;
+    let quote_padding_size = (dimensions.1 as f64 * QUOTE_PADDING_MULTIPLIER) as u32;
 
     let max_quote_box_dimensions = (
         dimensions.0 - margin_size * 2,
@@ -104,6 +104,18 @@ fn render_quote_text(
 ) -> RgbaImage {
     let color = color.to_rgba();
 
+    let font = Lato::bold();
+
+    const MAX_LINE_COUNT: u32 = 5;
+    const LINE_HEIGHT_MULTIPLIER: f64 = 1.3;
+
+    let min_line_height =
+        (max_dimensions.1 as f64 / (MAX_LINE_COUNT as f64 * LINE_HEIGHT_MULTIPLIER)) as u32;
+    let min_line_gap =
+        ((min_line_height as f64 / LINE_HEIGHT_MULTIPLIER) * (LINE_HEIGHT_MULTIPLIER - 1.0)) as u32;
+
+    let min_scale = Scale::uniform((min_line_height - min_line_gap) as f32);
+
     let quote = {
         let mut quote = String::from(quote);
 
@@ -113,37 +125,129 @@ fn render_quote_text(
             quote.remove(0);
         }
         if quote.ends_with('\'') || quote.ends_with('"') || quote.ends_with('\u{201D}') {
-            quote.remove(quote.len() - 1);
+            quote.pop();
+        }
+
+        quote = wrap_text(&quote, &font, min_scale, max_dimensions.0);
+
+        let mut quote_lines: Vec<&str> = quote.lines().collect();
+        if quote_lines.len() > MAX_LINE_COUNT as usize {
+            quote_lines = quote_lines.into_iter().take(5).collect();
+            quote = quote_lines.join("\n");
+            quote.pop();
+            quote.push('\u{2026}');
         }
 
         quote.insert(0, '\u{201C}');
-        quote.insert(quote.len(), '\u{201D}');
+        quote.push('\u{201D}');
 
         quote
     };
 
-    let font = Lato::bold();
+    let line_count: u32 = quote.lines().count() as u32;
 
-    let height = {
-        let height_max_dimensions =
-            drawing::text_size(Scale::uniform(max_dimensions.1 as f32), &font, &quote);
+    if line_count == 0 {
+        panic!("wrapped quote should be made up of at least one line");
+    }
 
-        let width_max_scale_factor = max_dimensions.0 as f64 / height_max_dimensions.0 as f64;
-        let width_max_height = (height_max_dimensions.1 as f64 * width_max_scale_factor) as u32;
+    let (height, scale) = if line_count == 1 {
+        let height = {
+            let height_max_dimensions =
+                drawing::text_size(Scale::uniform(max_dimensions.1 as f32), &font, &quote);
 
-        cmp::min_by_key(max_dimensions.1, width_max_height, |scale| {
-            let dimensions = drawing::text_size(Scale::uniform(*scale as f32), &font, &quote);
+            let width_max_scale_factor = max_dimensions.0 as f64 / height_max_dimensions.0 as f64;
+            let width_max_height = (height_max_dimensions.1 as f64 * width_max_scale_factor) as u32;
 
-            dimensions.1
-        })
+            cmp::min_by_key(max_dimensions.1, width_max_height, |scale| {
+                let dimensions = drawing::text_size(Scale::uniform(*scale as f32), &font, &quote);
+
+                dimensions.1 as u32
+            })
+        };
+        let scale = Scale::uniform(height as f32);
+
+        (height, scale)
+    } else {
+        let height = (min_line_height * line_count) - min_line_gap;
+
+        (height, min_scale)
     };
-    let scale = Scale::uniform(height as f32);
-    let dimensions = (drawing::text_size(scale, &font, &quote).0 as u32, height);
+
+    let max_line_width = quote
+        .lines()
+        .map(|line| {
+            let dimensions = drawing::text_size(scale, &font, line);
+
+            dimensions.0 as u32
+        })
+        .max()
+        .expect("wrapped quote should be made up of at least one line");
+    let dimensions = (max_line_width, height);
 
     let mut image = RgbaImage::new(dimensions.0, dimensions.1);
-    drawing::draw_text_mut(&mut image, color, 0, 0, scale, &font, &quote);
+    for (line_index, line) in quote.lines().enumerate() {
+        let line_width = drawing::text_size(scale, &font, line).0 as u32;
+        let line_position = (
+            dimensions.0 / 2 - line_width / 2,
+            min_line_height * line_index as u32,
+        );
+
+        drawing::draw_text_mut(
+            &mut image,
+            color,
+            line_position.0 as i32,
+            line_position.1 as i32,
+            scale,
+            &font,
+            line,
+        );
+    }
 
     image
+}
+
+fn wrap_text(text: &str, font: &Font, scale: Scale, max_width: u32) -> String {
+    let text = String::from(text);
+
+    if drawing::text_size(scale, font, &text).0 as u32 <= max_width {
+        text
+    } else {
+        let mut last_fitting_whitespace_index: Option<usize> = None;
+        let mut current_text = String::with_capacity(text.capacity());
+        for (index, character) in text.chars().enumerate() {
+            current_text.push(character);
+
+            if drawing::text_size(scale, font, &current_text).0 as u32 <= max_width {
+                if character.is_whitespace() {
+                    last_fitting_whitespace_index = Some(index);
+                }
+            } else {
+                if character.is_whitespace() || last_fitting_whitespace_index.is_none() {
+                    last_fitting_whitespace_index = Some(index);
+                }
+
+                break;
+            }
+        }
+
+        let last_fitting_whitespace_index = last_fitting_whitespace_index
+            .expect("last_fitting_whitespace_index should not be None after for loop");
+
+        let current_line: String = text
+            .chars()
+            .take(last_fitting_whitespace_index + 1)
+            .collect();
+        let remaining_text: String = text
+            .chars()
+            .skip(last_fitting_whitespace_index + 1)
+            .collect();
+
+        format!(
+            "{}\n{}",
+            current_line,
+            wrap_text(&remaining_text, font, scale, max_width)
+        )
+    }
 }
 
 fn calculate_average_color(image: &RgbImage) -> Rgb<u8> {
