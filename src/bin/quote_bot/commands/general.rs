@@ -76,11 +76,7 @@ async fn quote(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         let image_bytes = image_bytes.into_inner();
 
         msg.channel_id
-            .send_message(ctx, |m| {
-                m.reference_message(msg)
-                    .allowed_mentions(|am| am.empty_parse())
-                    .add_file((image_bytes.as_slice(), "quote.jpg"))
-            })
+            .send_message(ctx, |m| m.add_file((image_bytes.as_slice(), "quote.jpg")))
             .await
             .context("failed to send quote image")?;
 
