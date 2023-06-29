@@ -61,7 +61,7 @@ async fn test(ctx: &Context, msg: &Message) -> CommandResult {
             .await
             .context("failed to get random background image")?;
 
-        let image = render::render(&background_image, "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam magna sem, accumsan aliquet laoreet at, imperdiet at metus.", "test author", Utc::now());
+        let image = render::render(&background_image, "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam magna sem, accumsan aliquet laoreet at, imperdiet at metus.", "John Doe", Utc::now());
 
         let mut image_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         image

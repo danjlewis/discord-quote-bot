@@ -11,13 +11,16 @@ use crate::assets::fonts::Lato;
 pub fn render(
     background_image: &RgbImage,
     quote: &str,
-    _author: &str,
-    _timestamp: DateTime<Utc>,
+    author: &str,
+    timestamp: DateTime<Utc>,
 ) -> RgbaImage {
     let mut image: RgbaImage = background_image.clone().convert();
     let dimensions = image.dimensions();
 
     let average_color = calculate_average_color(background_image);
+
+    const TEXT_BOX_OPACITY: f64 = 0.6;
+    let text_box_color = Rgba([255, 255, 255, (255.0 * TEXT_BOX_OPACITY) as u8]);
 
     const MARGIN_MULTIPLIER: f64 = 0.2;
     let margin_size = (dimensions.1 as f64 * MARGIN_MULTIPLIER) as u32;
@@ -25,15 +28,18 @@ pub fn render(
     const QUOTE_PADDING_MULTIPLIER: f64 = 0.05;
     let quote_padding_size = (dimensions.1 as f64 * QUOTE_PADDING_MULTIPLIER) as u32;
 
+    const QUOTE_BOX_HEIGHT_MULTIPLIER: f64 = 3.0 / 4.0;
+
     let max_quote_box_dimensions = (
         dimensions.0 - margin_size * 2,
-        dimensions.1 - margin_size * 2,
+        ((dimensions.1 - margin_size * 2) as f64 * QUOTE_BOX_HEIGHT_MULTIPLIER) as u32,
     );
     let max_quote_box_position = (margin_size, margin_size);
 
     let quote_box = render_quote_box(
         quote,
         &average_color,
+        &text_box_color,
         max_quote_box_dimensions,
         quote_padding_size,
     );
@@ -44,12 +50,45 @@ pub fn render(
         max_quote_box_position.1 as i64,
     );
 
+    const BOX_GAP_MULTIPLIER: f64 = 0.025;
+    let box_gap_size = (dimensions.1 as f64 * BOX_GAP_MULTIPLIER) as u32;
+
+    const ATTRIBUTION_PADDING_MULTIPLIER: f64 = 0.025;
+    let attribution_padding_size = (dimensions.1 as f64 * ATTRIBUTION_PADDING_MULTIPLIER) as u32;
+
+    const ATTRIBUTION_BOX_HEIGHT_MULTIPLIER: f64 = 1.0 / 7.0;
+
+    let max_attribution_box_dimensions = (
+        max_quote_box_dimensions.0,
+        ((dimensions.1 - margin_size * 2) as f64 * ATTRIBUTION_BOX_HEIGHT_MULTIPLIER) as u32,
+    );
+    let max_attribution_box_position = (
+        max_quote_box_position.0,
+        (max_quote_box_position.1 + max_quote_box_dimensions.1) + box_gap_size,
+    );
+
+    let attribution_box = render_attribution_box(
+        author,
+        timestamp,
+        &average_color,
+        &text_box_color,
+        max_attribution_box_dimensions,
+        attribution_padding_size,
+    );
+    imageops::overlay(
+        &mut image,
+        &attribution_box,
+        max_attribution_box_position.0 as i64,
+        max_attribution_box_position.1 as i64,
+    );
+
     image
 }
 
 fn render_quote_box(
     quote: &str,
-    quote_color: &impl Pixel<Subpixel = u8>,
+    text_color: &impl Pixel<Subpixel = u8>,
+    text_box_color: &impl Pixel<Subpixel = u8>,
     max_dimensions: (u32, u32),
     padding_size: u32,
 ) -> RgbaImage {
@@ -58,7 +97,7 @@ fn render_quote_box(
         max_dimensions.1 - padding_size * 2,
     );
 
-    let quote_text = render_quote_text(quote, quote_color, max_quote_text_dimensions);
+    let quote_text = render_quote_text(quote, text_color, max_quote_text_dimensions);
     let quote_text_dimensions = quote_text.dimensions();
 
     let quote_box_dimensions = (
@@ -73,11 +112,10 @@ fn render_quote_box(
 
     let quote_text_position = (padding_size, padding_size);
 
-    const TEXT_BOX_OPACITY: f64 = 0.6;
     let mut quote_box = RgbaImage::from_pixel(
         quote_box_dimensions.0,
         quote_box_dimensions.1,
-        Rgba([255, 255, 255, (255.0 * TEXT_BOX_OPACITY) as u8]),
+        text_box_color.to_rgba(),
     );
     imageops::overlay(
         &mut quote_box,
@@ -117,9 +155,9 @@ fn render_quote_text(
     let min_scale = Scale::uniform((min_line_height - min_line_gap) as f32);
 
     let quote = {
-        let mut quote = String::from(quote);
+        let mut quote = String::from(quote.trim());
 
-        quote = quote.replace('\n', "");
+        quote = quote.lines().collect::<Vec<&str>>().join("");
 
         if quote.starts_with('\'') || quote.starts_with('"') || quote.starts_with('\u{201C}') {
             quote.remove(0);
@@ -127,6 +165,9 @@ fn render_quote_text(
         if quote.ends_with('\'') || quote.ends_with('"') || quote.ends_with('\u{201D}') {
             quote.pop();
         }
+
+        quote.insert(0, '\u{201C}');
+        quote.push('\u{201D}');
 
         quote = wrap_text(&quote, &font, min_scale, max_dimensions.0);
 
@@ -137,9 +178,6 @@ fn render_quote_text(
             quote.pop();
             quote.push('\u{2026}');
         }
-
-        quote.insert(0, '\u{201C}');
-        quote.push('\u{201D}');
 
         quote
     };
@@ -202,6 +240,112 @@ fn render_quote_text(
             line,
         );
     }
+
+    image
+}
+
+fn render_attribution_box(
+    author: &str,
+    timestamp: DateTime<Utc>,
+    text_color: &impl Pixel<Subpixel = u8>,
+    text_box_color: &impl Pixel<Subpixel = u8>,
+    max_dimensions: (u32, u32),
+    padding_size: u32,
+) -> RgbaImage {
+    let max_attribution_text_dimensions = (
+        max_dimensions.0 - padding_size * 2,
+        max_dimensions.1 - padding_size * 2,
+    );
+
+    let attribution_text = render_attribution_text(
+        author,
+        timestamp,
+        text_color,
+        max_attribution_text_dimensions,
+    );
+    let attribution_text_dimensions = attribution_text.dimensions();
+
+    let attribution_box_dimensions = (
+        attribution_text_dimensions.0 + padding_size * 2,
+        attribution_text_dimensions.1 + padding_size * 2,
+    );
+    // center-aligned within max attribution box
+    let attribution_box_position = (
+        max_dimensions.0 / 2 - attribution_box_dimensions.0 / 2,
+        max_dimensions.1 / 2 - attribution_box_dimensions.1 / 2,
+    );
+
+    let attribution_text_position = (padding_size, padding_size);
+
+    let mut attribution_box = RgbaImage::from_pixel(
+        attribution_box_dimensions.0,
+        attribution_box_dimensions.1,
+        text_box_color.to_rgba(),
+    );
+    imageops::overlay(
+        &mut attribution_box,
+        &attribution_text,
+        attribution_text_position.0 as i64,
+        attribution_text_position.1 as i64,
+    );
+
+    let mut image = RgbaImage::new(max_dimensions.0, max_dimensions.1);
+    imageops::overlay(
+        &mut image,
+        &attribution_box,
+        attribution_box_position.0 as i64,
+        attribution_box_position.1 as i64,
+    );
+
+    image
+}
+
+fn render_attribution_text(
+    author: &str,
+    timestamp: DateTime<Utc>,
+    color: &impl Pixel<Subpixel = u8>,
+    max_dimensions: (u32, u32),
+) -> RgbaImage {
+    let color = color.to_rgba();
+
+    let font = Lato::semibold_italic();
+
+    const TIMESTAMP_FORMAT: &str = "%d/%m/%Y";
+    let attribution = {
+        let mut author = String::from(author.trim());
+
+        author = author.lines().collect::<Vec<&str>>().join("");
+
+        if author.starts_with('-') {
+            author.remove(0);
+            author = String::from(author.trim_start());
+        }
+
+        format!("{}, {}", author, timestamp.format(TIMESTAMP_FORMAT))
+    };
+
+    let height = {
+        let height_max_dimensions =
+            drawing::text_size(Scale::uniform(max_dimensions.1 as f32), &font, &attribution);
+
+        let width_max_scale_factor = max_dimensions.0 as f64 / height_max_dimensions.0 as f64;
+        let width_max_height = (height_max_dimensions.1 as f64 * width_max_scale_factor) as u32;
+
+        cmp::min_by_key(max_dimensions.1, width_max_height, |scale| {
+            let dimensions = drawing::text_size(Scale::uniform(*scale as f32), &font, &attribution);
+
+            dimensions.1 as u32
+        })
+    };
+    let scale = Scale::uniform(height as f32);
+
+    let dimensions = (
+        drawing::text_size(scale, &font, &attribution).0 as u32,
+        height,
+    );
+
+    let mut image = RgbaImage::new(dimensions.0, dimensions.1);
+    drawing::draw_text_mut(&mut image, color, 0, 0, scale, &font, &attribution);
 
     image
 }

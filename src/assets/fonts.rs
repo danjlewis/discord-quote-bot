@@ -35,6 +35,10 @@ use rusttype::Font;
 pub struct Lato;
 
 impl Lato {
+    pub fn semibold_italic() -> Font<'static> {
+        load_font!("lato", "600_italic")
+    }
+
     pub fn bold() -> Font<'static> {
         load_font!("lato", "700")
     }
