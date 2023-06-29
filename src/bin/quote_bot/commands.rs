@@ -17,7 +17,7 @@ use std::collections::HashSet;
 
 use serenity::{
     framework::{
-        standard::{buckets::LimitedFor, macros::hook, DispatchError},
+        standard::{buckets::LimitedFor, macros::hook, CommandResult, DispatchError},
         StandardFramework,
     },
     model::prelude::{Message, UserId},
@@ -34,13 +34,19 @@ pub async fn framework(owners: HashSet<UserId>) -> StandardFramework {
         .configure(|cfg| cfg.prefix(COMMAND_PREFIX).owners(owners))
         .group(&general::GENERAL_GROUP)
         .help(&help::HELP)
+        .on_dispatch_error(dispatch_error_hook)
+        .after(after_hook)
         .bucket("unsplash", |b| {
-            b.limit_for(LimitedFor::Global)
-                .time_span(86400)
-                .limit(50)
-                .delay_action(unsplash_limit_hook)
+            b.limit_for(LimitedFor::Global).time_span(3600).limit(50)
         })
         .await
+}
+
+#[hook]
+async fn after_hook(_ctx: &Context, _msg: &Message, command_name: &str, result: CommandResult) {
+    if let Err(err) = result {
+        error!(command = command_name, "Command error occurred: {err:?}");
+    }
 }
 
 #[hook]
@@ -58,7 +64,10 @@ async fn dispatch_error_hook(
             let reply = msg.reply_ping(ctx, reply_content).await;
 
             if reply.is_err() {
-                error!("Unhandled dispatch error in {}: {:?}", command_name, error)
+                error!(
+                    command = command_name,
+                    "Unhandled dispatch error: {error:?}",
+                )
             }
         }
         DispatchError::TooManyArguments { max, given } => {
@@ -68,7 +77,10 @@ async fn dispatch_error_hook(
             let reply = msg.reply_ping(ctx, reply_content).await;
 
             if reply.is_err() {
-                error!("Unhandled dispatch error in {}: {:?}", command_name, error)
+                error!(
+                    command = command_name,
+                    "Unhandled dispatch error: {error:?}"
+                )
             }
         }
         DispatchError::OnlyForDM => {
@@ -77,7 +89,10 @@ async fn dispatch_error_hook(
             let reply = msg.reply_ping(ctx, reply_content).await;
 
             if reply.is_err() {
-                error!("Unhandled dispatch error in {}: {:?}", command_name, error)
+                error!(
+                    command = command_name,
+                    "Unhandled dispatch error: {error:?}"
+                )
             }
         }
         DispatchError::OnlyForGuilds => {
@@ -86,7 +101,10 @@ async fn dispatch_error_hook(
             let reply = msg.reply_ping(ctx, reply_content).await;
 
             if reply.is_err() {
-                error!("Unhandled dispatch error in {}: {:?}", command_name, error)
+                error!(
+                    command = command_name,
+                    "Unhandled dispatch error: {error:?}"
+                )
             }
         }
         DispatchError::OnlyForOwners
@@ -97,30 +115,30 @@ async fn dispatch_error_hook(
             let reply = msg.reply_ping(ctx, reply_content).await;
 
             if reply.is_err() {
-                error!("Unhandled dispatch error in {}: {:?}", command_name, error)
+                error!(
+                    command = command_name,
+                    "Unhandled dispatch error: {error:?}"
+                )
             }
         }
-        DispatchError::Ratelimited(_)
-        | DispatchError::BlockedUser
+        DispatchError::Ratelimited(_) => {
+            let reply = msg
+                .reply_ping(ctx, "Rate limit reached, please try again soon.")
+                .await;
+
+            if reply.is_err() {
+                error!(
+                    command = command_name,
+                    "Unhandled dispatch error: {error:?}"
+                )
+            }
+        }
+        DispatchError::BlockedUser
         | DispatchError::BlockedGuild
         | DispatchError::BlockedChannel => {}
-        _ => error!("Unhandled dispatch error in {}: {:?}", command_name, error),
-    }
-}
-
-#[hook]
-async fn unsplash_limit_hook(ctx: &Context, msg: &Message) {
-    let reaction = msg.react(ctx, '⏱').await;
-    if reaction.is_err() {
-        let reply = msg
-            .reply_ping(
-                ctx,
-                "Global daily rate limit reached! Please try again tomorrow.",
-            )
-            .await;
-
-        if reply.is_err() {
-            error!("Failed to send Unsplash rate limit message!");
-        }
+        _ => error!(
+            command = command_name,
+            "Unhandled dispatch error: {error:?}"
+        ),
     }
 }
