@@ -1,18 +1,17 @@
 use std::cmp;
 
-use chrono::{DateTime, Utc};
+use chrono::NaiveDate;
 use image::{buffer::ConvertBuffer, imageops, Pixel, Rgb, RgbImage, Rgba, RgbaImage};
 use imageproc::drawing;
 use rusttype::{Font, Scale};
 
 use crate::assets::fonts::Lato;
 
-// TODO: implement proper error handling
 pub fn render(
     background_image: &RgbImage,
     quote: &str,
     author: &str,
-    timestamp: DateTime<Utc>,
+    timestamp: NaiveDate,
 ) -> RgbaImage {
     let mut image: RgbaImage = background_image.clone().convert();
     let dimensions = image.dimensions();
@@ -246,7 +245,7 @@ fn render_quote_text(
 
 fn render_attribution_box(
     author: &str,
-    timestamp: DateTime<Utc>,
+    timestamp: NaiveDate,
     text_color: &impl Pixel<Subpixel = u8>,
     text_box_color: &impl Pixel<Subpixel = u8>,
     max_dimensions: (u32, u32),
@@ -302,7 +301,7 @@ fn render_attribution_box(
 
 fn render_attribution_text(
     author: &str,
-    timestamp: DateTime<Utc>,
+    timestamp: NaiveDate,
     color: &impl Pixel<Subpixel = u8>,
     max_dimensions: (u32, u32),
 ) -> RgbaImage {
