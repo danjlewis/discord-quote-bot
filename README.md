@@ -1,2 +1,2 @@
 # QuoteBot
-Discord bot for managing 'quote book' channels.
+Discord bot for generating custom 'inspirational'-style quotes.
