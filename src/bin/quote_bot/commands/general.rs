@@ -23,7 +23,7 @@ use serenity::{
 struct General;
 
 #[command]
-#[description("Generates an inspirational quote image.")]
+#[description("Generates an 'inspirational'-style quote image.")]
 #[usage("<quote> <author> [DD/MM/YYYY]")]
 #[example("\"Man, I really hope this sentence doesn't get stolen for an example quote.\" \"Some Guy I Stole From\" 29/06/2023")]
 #[min_args(2)]
